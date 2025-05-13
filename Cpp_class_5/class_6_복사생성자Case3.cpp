@@ -27,7 +27,8 @@ public:
 SoSimple SimpleFuncObj(SoSimple obj) { 
 	// 매개변수에 객체로 인해 내부 동작에서 CASE 2 를 포함함 !
 	cout << "return 이전" << endl;
-	// 반환 시점에서 임시 객체가 만들어지므로 복사 생성자를 통해 생성 후 반환됨
+	// 반환 시점에서 함수 내 지역 변수인 임시 객체가 소멸되므로 
+	// return 시 복사 생성자를 통해 생성 후 반환됨
 	return obj; 
 }
 int main() {
