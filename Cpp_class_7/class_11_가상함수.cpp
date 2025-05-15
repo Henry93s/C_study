@@ -6,13 +6,15 @@ public:
 	virtual void MyFunc() {
 		cout << "First Func" << endl;
 	}
+	virtual ~First() { cout << "~First" << endl; }
 };
 
 class Second : public First {
 public:
-	void MyFunc() {
+	virtual void MyFunc() {
 		cout << "Second Func" << endl;
 	}
+	virtual ~Second() { cout << "~Second" << endl; }
 };
 
 class Third : public Second {
@@ -20,6 +22,7 @@ public:
 	void MyFunc() {
 		cout << "Third Func" << endl;
 	}
+	virtual ~Third() { cout << "~Third" << endl; }
 };
 
 int main() {
@@ -40,7 +43,7 @@ int main() {
 	sptr->MyFunc(); // third
 	tptr->MyFunc(); // third
 
-	delete tptr;
+	delete tptr; // ~Third, ~Second, ~First
 
 	return 0;
 }
