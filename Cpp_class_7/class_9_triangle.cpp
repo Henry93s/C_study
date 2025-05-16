@@ -8,10 +8,10 @@ void Triangle::SetHeight(const int height) {
 	this->height = height;
 }
 void Triangle::CalArea() {
-	cout << width * height / 2 << endl;
+	cout << (width * height / 2,0) << endl;
 }
 int Triangle::GetWidth() {
-	return width * height / 2;
+	return width;
 }
 int Triangle::GetHeight() {
 	return this->height;
