@@ -1,6 +1,7 @@
 #include "breakout.h"
 #include <QLabel>
 #include <QApplication>
+#include <QMediaPlayer>
 
 #define WIDTH 50
 #define HEIGHT 12
@@ -11,18 +12,31 @@ BreakOut::BreakOut(QWidget *parent)
     : QWidget(parent), xDir(1), yDir(-1)
 {
     num = 0;
+    // life text
+    lifeText = new QLabel(this);
+    lifeText->setGeometry(5, 1, 150, 30);
+    lifeText->setStyleSheet("QLabel {color: red; font-size:15px; font-weight: bold;}");
+    lifeText->setText("♥ ♥ ♥");
+
+
+    // score text
     score = new QLabel(this);
     score->setGeometry(140,SCR_HEIGHT*0.9,50,50);
     score->setStyleSheet("QLabel {color: red; font-size: 20px; font-weight: bold;}");
 
+    // game lost or victory text
     text = new QLabel(this);
     text->setGeometry(110,170,150,50);
     text->setStyleSheet("QLabel {font-size: 20px; font-weight: bold;}");
-    //
-    ball = new QLabel(this);
+
+    // Ball, Brick, Paddle 클래스 추가하여 코드 분리 작업으로 인한 주석 처리 후 사용자 정의 객체 생성
+    ball = new Ball(this);
+    // ball = new QLabel(this);
     ball->setGeometry(SCR_WIDTH*0.8, SCR_HEIGHT*0.875, 10, 10);
     ball->setStyleSheet("QLabel {background-color: red; border-radius: 5px;}");
-    paddle = new QLabel(this);
+    // Ball, Brick, Paddle 클래스 추가하여 코드 분리 작업으로 인한 주석 처리 후 사용자 정의 객체 생성
+    paddle = new Paddle(this);
+    // paddle = new QLabel(this);
     paddle->setGeometry(SCR_WIDTH*0.7, SCR_HEIGHT*0.9, WIDTH, HEIGHT);
     paddle->setStyleSheet("QLabel {background-color: blue;}");
 
@@ -30,7 +44,9 @@ BreakOut::BreakOut(QWidget *parent)
 
     for(int y=0,i=0;y<5;y++){
         for(int x=0;x<6;x++,i++){
-            bricks[i] = new QLabel(this);
+            bricks[i] = new Brick(this);
+            // Ball, Brick, Paddle 클래스 추가하여 코드 분리 작업으로 인한 주석 처리 후 사용자 정의 객체 생성
+            // bricks[i] = new QLabel(this);
             bricks[i]->setStyleSheet("QLabel {background-color: cyan; border: 1px solid black}");
             bricks[i]->setGeometry(x*WIDTH, y*HEIGHT+30, WIDTH, HEIGHT);
         }
@@ -42,6 +58,33 @@ BreakOut::BreakOut(QWidget *parent)
 
     // QObject 의 타이머 시작
     timerId = startTimer(10);
+
+    // multimedia sound 출력 을 위한 audio output 객체 생성
+    QAudioOutput* bgAudioOutput = new QAudioOutput;
+    bgAudioOutput->setVolume(10);
+
+    bgPlayer = new QMediaPlayer();
+    // audio output 을 인자로 background player output 설정
+    bgPlayer->setAudioOutput(bgAudioOutput);
+    bgPlayer->setLoops(QMediaPlayer::Infinite); // 무한 반복 재생
+    bgPlayer->setSource(
+        QUrl::fromLocalFile(QFileInfo("background.wav").absoluteFilePath())
+        );
+    // 시작 시 바로 재생
+    bgPlayer->play();
+
+    // 효과음 출력을 위한 플레이어
+    // multimedia sound 출력 을 위한 audio output 객체 생성
+    QAudioOutput* bgEffectOutput = new QAudioOutput;
+    bgEffectOutput->setVolume(200);
+
+    effectPlayer = new QMediaPlayer();
+    // audio output 을 인자로 effect player output 설정
+    effectPlayer->setAudioOutput(bgEffectOutput);
+    effectPlayer->setLoops(QMediaPlayer::Once); // 한 번 재생
+    effectPlayer->setSource(
+        QUrl::fromLocalFile(QFileInfo("effect.wav").absoluteFilePath())
+        );
 }
 
 // 키보드 이동시 패들을 좌우로만 이동(y축 고정, esc 키 종료)
@@ -104,11 +147,14 @@ void BreakOut::timerEvent(QTimerEvent* e){
 // 공의 이동 메소드 (볼의 특정 값을 더함, 충돌하면 반대 부호(-) 를 더함)
 void BreakOut::moveObjects(){
     ball->move(ball->x() + xDir, ball->y() + yDir);
+    qint64 nRandYDir;
     if((ball->x() <= 0) || (ball->x()+10 >=SCR_WIDTH)){
         xDir *= -1; // 충돌 케이스 마이너스 이동
     }
     if(ball->y() <= 0){
-        yDir = 1;
+        // bugfix: 일정하게 움직일 경우보다 랜덤하게 수를 조절함
+        nRandYDir = rand() % 3 + 1;
+        yDir = nRandYDir;
     }
 
     // 아래는 땅에 부딫힐 때 튕기는 추가 케이스
@@ -122,9 +168,26 @@ void BreakOut::moveObjects(){
 // 패들과 충돌 처리 메소드
 void BreakOut::checkCollision(){
     if(ball -> geometry().bottom() > height()){
-        killTimer(timerId);
-        qDebug("Game lost");
-        text->setText("Game lost");
+        if(life == 0){
+            killTimer(timerId);
+            qDebug("Game lost");
+            text->setText("Game lost");
+        } else {
+            // 땅에 부딫힐 때 튕기는 추가 케이스 (life 0 까지 살아남)
+            if(ball->y() <= 0 || ball->y()+10 >= SCR_HEIGHT){ // || ball->y()+10 >= SCR_HEIGHT 추가 케이스 작성
+                yDir *= -1; // 충돌 케이스
+            }
+
+            --life;
+            qDebug("life --");
+            if(life == 2){
+                lifeText->setText("♥ ♥ ♡");
+            } else if(life == 1){
+                lifeText->setText("♥ ♡ ♡");
+            } else if(life == 0){
+                lifeText->setText("♡ ♡ ♡");
+            }
+        }
     }
 
     // 남은 블록이 없으면 게임 종료
@@ -151,21 +214,28 @@ void BreakOut::checkCollision(){
         int fourth = paddleLPos + 32;
 
         // 패들 맞은 부분에 대해 공의 반사되는 방향 조정
+        // bugfix: 일정하게 움직일 경우보다 랜덤하게 수를 조절함
+        qint64 nRandYDir;
+        nRandYDir = rand() % 3 + 1;
         if(ballLPos < first){
-            xDir = -1; yDir = -1;
+            xDir = nRandYDir * -1; yDir = nRandYDir * -1;
         }
         if(ballLPos >= first && ballLPos < second){
-            xDir = -1; yDir *= -1;
+            xDir = nRandYDir * -1; yDir *= nRandYDir * -1;
         }
         if(ballLPos >= second && ballLPos < third){
-            xDir = 0; yDir = -1;
+            xDir = 0; yDir = nRandYDir * -1;
         }
         if(ballLPos >= third && ballLPos < fourth){
-            xDir = 1; yDir *= -1;
+            xDir = nRandYDir * 1; yDir *= nRandYDir * -1;
         }
         if(ballLPos > fourth){
-            xDir = 1; yDir = -1;
+            xDir = nRandYDir * 1; yDir = nRandYDir * -1;
         }
+
+        // 패들과 충돌 시 사운드 출력
+        effectPlayer->stop();
+        effectPlayer->play();
     }
 
     // 블록 충돌을 처리
@@ -199,6 +269,10 @@ void BreakOut::checkCollision(){
                 num++;
                 score->setText(QString::number(num));
                 bricks[i]->setHidden(true);
+
+                // 블록과 충돌 시 사운드 출력
+                effectPlayer->stop();
+                effectPlayer->play();
             }
         }
     }
