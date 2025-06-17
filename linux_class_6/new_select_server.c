@@ -34,21 +34,23 @@ int main(int argc, char** argv){
 	memset(&servaddr, 0, sizeof(servaddr));
 	// IPv4 사용
 	servaddr.sin_family = AF_INET;
-	// 모든 인터페이스 접속 허용
+	// 모든 인터페이스 접속 허용(0.0.0.0)
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	// 포트 설정
 	servaddr.sin_port = htons(TCP_PORT);
 	
 	// 3. 소켓에 주소 바인딩
+	// 서버 소켓의 IP 주소와 포트 번호를 연결하여 해당 소켓이 앞으로 이 IP 주소와 포트에서 통신함을 알림
+	
 	if(bind(ssock, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0) {
 		perror("bind()");
-        return -1;
+		return -1;
 	}
 	
 	// 4. 클라이언트 접속 요청 대기
 	if(listen(ssock, 8) < 0){
 		perror("listen()");
-        return -1;
+		return -1;
 	}
 	
 	// 5. 초기화
@@ -62,16 +64,18 @@ int main(int argc, char** argv){
 	// 6. 메인 이벤트 루프
 	do{
 	  // 매 루프마다 fd_set 초기화
-      FD_ZERO(&readfd);
+	  FD_ZERO(&readfd);
 	  // 서버 소켓을 fd 리스트에 추가 
       FD_SET(ssock, &readfd);
 	
       maxfd = ssock;
       for(start_index = 0; start_index < client_index; ++start_index){
+		  // 95 line : 연결 수락(accept)되고 운영체제가 할당한 새 소켓 디스크립터가
+		  // 106 line : 클라이언트 fd 배열에 추가되어 if 문 제어 가능
 		  if (client_fd[start_index] > 0) {
 			  // 클라이언트 소켓 추가
 			  FD_SET(client_fd[start_index], &readfd);
-              if(client_fd[start_index] > maxfd){
+			  if(client_fd[start_index] > maxfd){
 				  // maxfd 갱신
                   maxfd = client_fd[start_index];
               }
@@ -82,7 +86,7 @@ int main(int argc, char** argv){
       maxfd = maxfd + 1;
 
 	  // 7. 읽기 가능한 소켓이 생길 때까지 블로킹
-      select(maxfd, &readfd, NULL, NULL, NULL);
+      select(maxfd, &readfd, NULL, NULL, NULL); // fd(파일 디스크립터) 리스트를 모두 확인하여 코드 상 기준 read 처리 이벤트가 발생할 때까지 대기
 
 	  // 8. 새 클라이언트 연결 감지
       if(FD_ISSET(ssock, &readfd)){
